@@ -36,15 +36,6 @@ jobs:
       id-token: write
     strategy:
       fail-fast: false
-      matrix:
-        major_version: [37, 38]
-        include:
-          - major_version: 37
-            is_latest: false
-            is_stable: false
-          - major_version: 38
-            is_latest: true
-            is_stable: true
 
     steps:
 
@@ -62,11 +53,11 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: |
+          images:
             ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
-          flavor: |
+          flavor:
             latest=false
-          tags: |
+          tags:
             type=semver,pattern={{version}}
             type=sha,prefix=sha256-
 
@@ -75,28 +66,28 @@ jobs:
         id: meta_pr
         uses: docker/metadata-action@v4
         with:
-          images: |
+          images:
             ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
-          flavor: |
+          flavor:
             latest=false
-          tags: |
-            type=ref,suffix=-${{ matrix.major_version }},event=pr
+          tags:
+            type=ref,event=pr
 
       - name: Extract Docker date tag
         if: github.event_name == 'schedule'
         id: meta_date
         uses: docker/metadata-action@v4
         with:
-          images: |
+          images:
             ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            latest=false
-          tags: |
+          flavor:
+            latest=true
+          tags:
             type=schedule,prefix=${{ matrix.major_version }}-,pattern={{date 'YYYYMMDD'}}
 
       - name: Extract Docker major version tag
-        if: |
-          github.event_name != 'pull_request' && matrix.major_version != ''
+        if:
+          github.event_name != 'pull_request'
         id: meta_version
         uses: docker/metadata-action@v4
         with:
@@ -104,52 +95,19 @@ jobs:
             ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
           flavor: |
             latest=false
-          tags: |
-            type=raw,value=${{ matrix.major_version }}
-
-      - name: Extract Docker stable tag
-        if: |
-          github.event_name != 'pull_request' && matrix.is_stable == true
-        id: meta_stable
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            latest=false
-          tags: |
-            type=schedule,pattern={{date 'YYYYMMDD'}}
-            type=raw,value=stable
-
-      - name: Extract Docker latest tag
-        if: |
-          github.event_name != 'pull_request' && matrix.is_latest == true
-        id: meta_latest
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,value=latest
 
       - name: Build Image
         id: build_image
         uses: redhat-actions/buildah-build@v2
         with:
           containerfiles: |
-            ./Containerfile.${{ matrix.major_version }}
+            ./Containerfile
           tags: |
             ${{ steps.meta.outputs.tags }}
             ${{ steps.meta_pr.outputs.tags }}
             ${{ steps.meta_date.outputs.tags }}
             ${{ steps.meta_version.outputs.tags }}
-            ${{ steps.meta_stable.outputs.tags }}
-            ${{ steps.meta_latest.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: |
-            FEDORA_MAJOR_VERSION=${{ matrix.major_version }}
           oci: false
 
       - name: Push to container registries
@@ -159,17 +117,6 @@ jobs:
           tags: ${{ steps.build_image.outputs.tags }}
           extra-args: |
             --disable-content-trust
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@v3.1.2
-
-      - name: Sign container image
-        run: |
-          cosign sign -y --key env://COSIGN_PRIVATE_KEY ${{ env.REGISTRY_URL }}/${{ env.REGISTRY_USERNAME }}/${{ env.IMAGE_NAME }}@${TAGS}
-        env:
-          TAGS: ${{ steps.push.outputs.digest }}
-          COSIGN_PRIVATE_KEY: ${{ secrets.COSIGN_KEY }}
-          COSIGN_EXPERIMENTAL: false
 
       - name: Echo outputs
         run: |
