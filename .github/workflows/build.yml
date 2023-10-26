@@ -83,7 +83,7 @@ jobs:
           flavor:
             latest=true
           tags:
-            type=schedule,prefix=${{ matrix.major_version }}-,pattern={{date 'YYYYMMDD'}}
+            type=schedule,prefix=nightly-,pattern={{date 'YYYYMMDD'}}
 
       - name: Extract Docker major version tag
         if:
