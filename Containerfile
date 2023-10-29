@@ -6,7 +6,7 @@ COPY rootfs/ /
 
 RUN rpm-ostree override remove firefox firefox-langpacks && \
     rpm-ostree install gnome-tweaks && \
-    rpm-ostree install docker-podman && \
+    rpm-ostree install podman-docker && \
     sed -i 's/#AutomaticUpdatePolicy.*/AutomaticUpdatePolicy=check/' /etc/rpm-ostreed.conf && \
     systemctl enable rpm-ostreed-automatic.timer && \
     systemctl enable dconf-update.service && \
